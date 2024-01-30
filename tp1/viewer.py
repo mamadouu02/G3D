@@ -60,8 +60,9 @@ class Triangle:
     """Hello triangle object"""
 
     def __init__(self, shader):
-        self.shader = shader
+        self.key_handler()
 
+        self.shader = shader
         # triangle position buffer, Numpy array of our 3D coordinates
         position = np.array(((0, .5, 0), (.5, -.5, 0), (-.5, -.5, 0)), 'f')
 
@@ -78,15 +79,22 @@ class Triangle:
         GL.glBufferData(GL.GL_ARRAY_BUFFER, position, GL.GL_STATIC_DRAW)
         GL.glVertexAttribPointer(loc, 3, GL.GL_FLOAT, False, 0, None)
 
+
     def draw(self):
         # use shader, draw triangle as GL_TRIANGLE vertex array, draw array call
         GL.glUseProgram(self.shader.glid)
+        my_color_location = GL.glGetUniformLocation(self.shader.glid, 'color')
+        GL.glUniform3fv(my_color_location, 1, self.color)
         GL.glBindVertexArray(self.glid)
         GL.glDrawArrays(GL.GL_TRIANGLES, 0, 3)
 
     def __del__(self):
         GL.glDeleteVertexArrays(1, [self.glid])
         GL.glDeleteBuffers(1, self.buffers)
+
+    def key_handler(self):
+        self.color = eval(input("Enter a color: "))
+
 
 
 # ------------  Viewer class & window management ------------------------------
