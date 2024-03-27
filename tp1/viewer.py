@@ -11,6 +11,8 @@ import OpenGL.GL as GL              # standard Python OpenGL wrapper
 import glfw                         # lean window system wrapper for OpenGL
 import numpy as np                  # all matrix manipulations & OpenGL args
 
+from transform import translate, rotate, scale, vec, perspective
+
 
 # ------------ low level OpenGL object wrappers ----------------------------
 class Shader:
@@ -60,16 +62,15 @@ class Triangle:
     """Hello triangle object"""
 
     def __init__(self, shader):
-        self.key_handler()
-
         self.shader = shader
         # triangle position buffer, Numpy array of our 3D coordinates
         position = np.array(((0, .5, 0), (.5, -.5, 0), (-.5, -.5, 0)), 'f')
+        color = np.array(((1, 0, 0), (0, 1, 0), (0, 0, 1)), 'f')
 
         self.glid = GL.glGenVertexArrays(1)  # create OpenGL vertex array id
         GL.glBindVertexArray(self.glid)      # activate to receive state below
-        self.buffers = [GL.glGenBuffers(1)]  # create buffer for position attrib
-        # self.buffers = GL.glGenBuffers(n)	 # if n > 1, use this instead
+        # self.buffers = [GL.glGenBuffers(1)]  # create buffer for position attrib
+        self.buffers = GL.glGenBuffers(2)	 # if n > 1, use this instead
         # GL.glGenBuffers(n) with n > 1 directly returns a list and not an index
 
         # create position attribute, send to GPU, declare type & per-vertex size
@@ -79,22 +80,52 @@ class Triangle:
         GL.glBufferData(GL.GL_ARRAY_BUFFER, position, GL.GL_STATIC_DRAW)
         GL.glVertexAttribPointer(loc, 3, GL.GL_FLOAT, False, 0, None)
 
+        # create color attribute, send to GPU, declare type & per-vertex size
+        loc = GL.glGetAttribLocation(shader.glid, 'color')
+        GL.glEnableVertexAttribArray(loc)    # assign to position attribute
+        GL.glBindBuffer(GL.GL_ARRAY_BUFFER, self.buffers[1])
+        GL.glBufferData(GL.GL_ARRAY_BUFFER, color, GL.GL_STATIC_DRAW)
+        GL.glVertexAttribPointer(loc, 3, GL.GL_FLOAT, False, 0, None)
+
+        self.color = [0, 0, 0]
+        self.rot_angle = 45
+
+    def key_handler(self, key):
+        if key == glfw.KEY_R:
+            self.color[0] += 0.1
+        if key == glfw.KEY_G:
+            self.color[1] += 0.1
+        if key == glfw.KEY_B:
+            self.color[2] += 0.1
+        if key == glfw.KEY_LEFT:
+            self.rot_angle -= 5
+        if key == glfw.KEY_RIGHT:
+            self.rot_angle += 5
 
     def draw(self):
         # use shader, draw triangle as GL_TRIANGLE vertex array, draw array call
         GL.glUseProgram(self.shader.glid)
+
+        rot_mat = rotate(vec(0, 1, 0), self.rot_angle)
+        tra_mat = translate(.4, 0, -3)
+        sca_mat = scale(2, 1, 1)
+        proj_mat = perspective(45, 1, 0, 10)
+
         my_color_location = GL.glGetUniformLocation(self.shader.glid, 'color')
         GL.glUniform3fv(my_color_location, 1, self.color)
+
+        matrix_location = GL.glGetUniformLocation(self.shader.glid, 'matrix')
+        GL.glUniformMatrix4fv(matrix_location, 1, True, rot_mat @ sca_mat @ tra_mat)
+
+        projection_location = GL.glGetUniformLocation(self.shader.glid, 'projection')
+        GL.glUniformMatrix4fv(projection_location, 1, True, proj_mat)
+
         GL.glBindVertexArray(self.glid)
         GL.glDrawArrays(GL.GL_TRIANGLES, 0, 3)
 
     def __del__(self):
         GL.glDeleteVertexArrays(1, [self.glid])
-        GL.glDeleteBuffers(1, self.buffers)
-
-    def key_handler(self):
-        self.color = eval(input("Enter a color: "))
-
+        GL.glDeleteBuffers(2, self.buffers)
 
 
 # ------------  Viewer class & window management ------------------------------
